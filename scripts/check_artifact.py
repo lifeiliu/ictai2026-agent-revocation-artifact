@@ -63,14 +63,14 @@ def main() -> None:
         for key in aggregate:
             aggregate[key] += row.get(key, 0)
     expect("E17-E19 aggregate", aggregate, {
-        "trace_units": 5,
-        "signed_delegation_events": 25,
-        "valid_signed_delegation_events": 25,
-        "alternate_parent_cases": 4,
-        "alternate_parent_preserved_by_edge_target": 4,
-        "alternate_parent_wrongly_revoked_by_tree": 4,
-        "cross_domain_target_cases": 11,
-        "cross_domain_under_revoked_by_scoped": 11,
+        "trace_units": 9,
+        "signed_delegation_events": 53,
+        "valid_signed_delegation_events": 53,
+        "alternate_parent_cases": 8,
+        "alternate_parent_preserved_by_edge_target": 8,
+        "alternate_parent_wrongly_revoked_by_tree": 8,
+        "cross_domain_target_cases": 19,
+        "cross_domain_under_revoked_by_scoped": 19,
     })
 
     e6 = load("results/e6_semantic_stress.json")["batch_random"]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from revocation.api import RevocationBundle, RevocationContract
+from revocation.api import FrameworkRevocationAdapter, RevocationBundle, RevocationContract
 from revocation.cli import main as cli_main
 
 
@@ -68,6 +68,49 @@ def test_revocation_contract_exports_offline_verifiable_bundle(tmp_path):
     loaded = RevocationBundle.from_path(proof_path)
     assert loaded.target == ["agent:leaf"]
     assert loaded.verify()
+
+
+def test_framework_adapter_records_accepts_revokes_and_verifies():
+    adapter = FrameworkRevocationAdapter(
+        framework="unit-agent-runtime",
+        workflow="shared-agent-demo",
+        epoch_id="api-demo-epoch",
+    )
+    edges = [
+        adapter.record_handoff(
+            caller="root:a",
+            callee="agent:a",
+            parent_domain="root_domain",
+            child_domain="domain_a",
+            permission={"tenant": "t", "resource": "case", "action": "read"},
+            edge_id="e-root-a",
+        ),
+        adapter.record_handoff(
+            caller="agent:a",
+            callee="agent:shared",
+            parent_domain="domain_a",
+            child_domain="shared_domain",
+            permission={"tenant": "t", "resource": "case", "action": "read"},
+            edge_id="e-a-shared",
+        ),
+        adapter.record_handoff(
+            caller="agent:shared",
+            callee="agent:leaf",
+            parent_domain="shared_domain",
+            child_domain="leaf_domain",
+            permission={"tenant": "t", "resource": "case", "action": "write"},
+            edge_id="e-shared-leaf",
+        ),
+    ]
+    for edge in edges:
+        accepted = adapter.accept_edge(str(edge["edge_id"]))
+        assert accepted["accepted"] is True
+
+    bundle = adapter.revoke_edge("e-shared-leaf", revoked_at=2.0)
+
+    assert bundle.target == ["agent:leaf"]
+    assert adapter.verify_revocation_bundle(bundle)
+    assert adapter.verify_revocation_bundle(bundle.to_dict())
 
 
 def test_revocation_cli_revoke_and_verify_round_trip(tmp_path, capsys):

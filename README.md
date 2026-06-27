@@ -12,7 +12,7 @@ The artifact is intentionally scoped to the experiments used by the paper:
 - E11: static LangGraph corpus summary used as lower-bound topology evidence.
 - E16: executed LangGraph trace replay and baseline expressiveness.
 - E17/E18: A2A-, AutoGen-, and CrewAI-shaped portability artifacts.
-- E19: tiny executable CrewAI artifact with a deterministic local LLM.
+- E19: five executable CrewAI workflows with a deterministic local LLM.
 
 It excludes local virtual environments, caches, personal paths, and deployment
 logs that are not used as evidence in the submitted paper.
@@ -71,7 +71,7 @@ The artifact also includes a small reference API/CLI for the signed-DAG
 revocation contract. It is a reviewer-facing integration layer, not a production
 authorization service.
 
-Run the tiny E19 adapter example:
+Run the E19 adapter example:
 
 ```bash
 PYTHONPATH=src .venv/bin/python examples/agent_runtime_adapter.py
@@ -82,7 +82,7 @@ Generate and verify a portable proof bundle from the E19 CrewAI trace:
 ```bash
 PYTHONPATH=src .venv/bin/python -m revocation.cli revoke \
   --trace experiments/e19_crewai_executable_demo/traces/normalized_events.jsonl \
-  --edge 404b317115476b4224e04937 \
+  --edge 3f3adb5b4bbf013a133a289d \
   --out /tmp/e19-revocation-proof.json
 
 PYTHONPATH=src .venv/bin/python -m revocation.cli verify \
@@ -96,8 +96,8 @@ require the original graph.
 
 - E16: 500 traces, 10,500 raw runtime events, 2,000 valid signed delegation
   decisions, 320 alternate-parent cases, 760/760 replay-level attacks rejected.
-- E17--E19: 5 portability traces, 25/25 valid signed delegation events, 4/4
-  alternate-parent cases preserved by the edge target, and 11/11 cross-domain
+- E17--E19: 9 portability traces, 53/53 valid signed delegation events, 8/8
+  alternate-parent cases preserved by the edge target, and 19/19 cross-domain
   target cases missed by deployer-scoped cascade.
 - E6: 39,991 sampled batch revocation sets, 21.25% mean per-graph
   non-compositionality failure, mean missed nodes 0.24, max missed nodes 5.

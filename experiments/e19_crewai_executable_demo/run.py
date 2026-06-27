@@ -1,13 +1,13 @@
-"""Tiny executable CrewAI delegation replay for Paper A.
+"""Executable CrewAI delegation replay for Paper A.
 
 E16 is the primary executed LangGraph evidence. E19 is a smaller portability
 artifact that runs real CrewAI objects with a deterministic local LLM. It records
-CrewAI task callbacks and task-context handoffs, normalizes those handoffs into
-the same signed delegation schema, and replays edge targets against approximate
-revocation baselines.
+CrewAI task callbacks across several workflow shapes, normalizes task-context
+handoffs into the same signed delegation schema, and replays edge targets against
+approximate revocation baselines.
 
-The experiment is intentionally small. It is evidence that the schema can be
-attached to an executable CrewAI workflow, not a production deployment or a
+The experiment is intentionally lightweight. It is evidence that the schema can
+be attached to executable CrewAI workflows, not a production deployment or a
 prevalence estimate.
 """
 
@@ -63,19 +63,6 @@ RAW_PATH = TRACE_DIR / "crewai_runtime_raw.jsonl"
 NORMALIZED_PATH = TRACE_DIR / "normalized_events.jsonl"
 RESULTS_PATH = HERE / "e19_results.json"
 EPOCH_ID = "e19-crewai-executable-demo"
-TRACE_ID = "crewai-executable-procurement-r000"
-WORKFLOW = "crewai-cross-org-procurement-executable"
-INPUT_CELL = "purchase-order-reconciliation"
-
-AGENT_DEPLOYERS = {
-    "ops_lead": "retail_ops",
-    "researcher": "retail_ops",
-    "supplier_agent": "supplier_vendor",
-    "shipping_agent": "logistics_vendor",
-    "finance_lead": "finance_ops",
-    "invoice_agent": "finance_ops",
-    "compliance_reviewer": "governance_vendor",
-}
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -112,9 +99,10 @@ def write_json(path: Path, value: Any) -> None:
 class DeterministicLLM(BaseLLM):
     """Offline CrewAI LLM that makes the artifact executable without API keys."""
 
-    def __init__(self, llm_calls: list[dict[str, Any]]) -> None:
+    def __init__(self, llm_calls: list[dict[str, Any]], workflow: dict[str, Any]) -> None:
         super().__init__(model="deterministic-offline-crewai")
         self._llm_calls = llm_calls
+        self._workflow = workflow
 
     def call(
         self,
@@ -131,9 +119,9 @@ class DeterministicLLM(BaseLLM):
                 "kind": "crewai_runtime_event",
                 "event_type": "llm_call",
                 "framework": f"crewai-{crewai.__version__}",
-                "trace_id": TRACE_ID,
-                "workflow": WORKFLOW,
-                "input_cell": INPUT_CELL,
+                "trace_id": self._workflow["trace_id"],
+                "workflow": self._workflow["workflow"],
+                "input_cell": self._workflow["input_cell"],
                 "agent_role": getattr(from_agent, "role", None),
                 "task_name": getattr(from_task, "name", None),
                 "tools_available": len(tools or []),
@@ -151,66 +139,124 @@ def permission(resource: str, action: str, constraints: list[str]) -> dict[str, 
     }
 
 
-TASK_SPECS = [
-    {
-        "name": "scope_purchase",
-        "agent": "ops_lead",
-        "contexts": [],
-        "permission": permission("purchase-order", "scope", ["case-scoped"]),
-    },
-    {
-        "name": "research_vendor",
-        "agent": "researcher",
-        "contexts": ["scope_purchase"],
-        "permission": permission("supplier-profile", "read", ["case-scoped"]),
-    },
-    {
-        "name": "quote_supplier",
-        "agent": "supplier_agent",
-        "contexts": ["research_vendor"],
-        "permission": permission("purchase-order", "quote", ["po-scoped"]),
-    },
-    {
-        "name": "shipping_check",
-        "agent": "shipping_agent",
-        "contexts": ["quote_supplier"],
-        "permission": permission("shipment", "estimate", ["po-scoped"]),
-    },
-    {
-        "name": "finance_terms",
-        "agent": "finance_lead",
-        "contexts": [],
-        "permission": permission("invoice", "scope", ["case-scoped"]),
-    },
-    {
-        "name": "invoice_review",
-        "agent": "invoice_agent",
-        "contexts": ["finance_terms"],
-        "permission": permission("invoice", "review", ["case-scoped"]),
-    },
-    {
-        "name": "supplier_reconcile",
-        "agent": "supplier_agent",
-        "contexts": ["research_vendor", "invoice_review"],
-        "permission": permission("purchase-order", "reconcile", ["po-scoped"]),
-    },
-    {
-        "name": "compliance_signoff",
-        "agent": "compliance_reviewer",
-        "contexts": ["supplier_reconcile"],
-        "permission": permission("purchase-order", "approve", ["po-scoped"]),
-    },
+def workflow_definition(
+    *,
+    key: str,
+    input_cell: str,
+    resource: str,
+    final_action: str,
+) -> dict[str, Any]:
+    """Build one executable CrewAI workflow with a shared multi-parent agent."""
+    return {
+        "key": key,
+        "trace_id": f"crewai-executable-{key}-r000",
+        "workflow": f"crewai-{key}-executable",
+        "input_cell": input_cell,
+        "agents": {
+            "ops_lead": f"{key}_ops",
+            "researcher": f"{key}_ops",
+            "shared_specialist": f"{key}_partner",
+            "remote_worker": f"{key}_remote",
+            "finance_lead": f"{key}_finance",
+            "finance_agent": f"{key}_finance",
+            "governance_reviewer": f"{key}_governance",
+        },
+        "tasks": [
+            {
+                "name": "scope_request",
+                "agent": "ops_lead",
+                "contexts": [],
+                "permission": permission(resource, "scope", ["case-scoped"]),
+            },
+            {
+                "name": "research_context",
+                "agent": "researcher",
+                "contexts": ["scope_request"],
+                "permission": permission(resource, "read", ["case-scoped"]),
+            },
+            {
+                "name": "partner_assist",
+                "agent": "shared_specialist",
+                "contexts": ["research_context"],
+                "permission": permission(resource, "assist", ["case-scoped"]),
+            },
+            {
+                "name": "remote_execute",
+                "agent": "remote_worker",
+                "contexts": ["partner_assist"],
+                "permission": permission(resource, "execute", ["case-scoped"]),
+            },
+            {
+                "name": "finance_scope",
+                "agent": "finance_lead",
+                "contexts": [],
+                "permission": permission(resource, "budget", ["case-scoped"]),
+            },
+            {
+                "name": "finance_review",
+                "agent": "finance_agent",
+                "contexts": ["finance_scope"],
+                "permission": permission(resource, "approve-spend", ["case-scoped"]),
+            },
+            {
+                "name": "partner_reconcile",
+                "agent": "shared_specialist",
+                "contexts": ["research_context", "finance_review"],
+                "permission": permission(resource, "reconcile", ["case-scoped"]),
+            },
+            {
+                "name": "governance_signoff",
+                "agent": "governance_reviewer",
+                "contexts": ["partner_reconcile"],
+                "permission": permission(resource, final_action, ["case-scoped"]),
+            },
+        ],
+    }
+
+
+WORKFLOWS = [
+    workflow_definition(
+        key="procurement",
+        input_cell="purchase-order-reconciliation",
+        resource="purchase-order",
+        final_action="approve",
+    ),
+    workflow_definition(
+        key="incident",
+        input_cell="service-incident-triage",
+        resource="incident-ticket",
+        final_action="close",
+    ),
+    workflow_definition(
+        key="support",
+        input_cell="customer-support-escalation",
+        resource="support-case",
+        final_action="respond",
+    ),
+    workflow_definition(
+        key="research",
+        input_cell="research-brief-review",
+        resource="research-brief",
+        final_action="publish",
+    ),
+    workflow_definition(
+        key="code",
+        input_cell="code-review-release",
+        resource="release-change",
+        final_action="merge",
+    ),
 ]
 
 
-def agent_node(agent_label: str) -> str:
-    return f"crewai:{agent_label}"
+def agent_node(workflow_key: str, agent_label: str) -> str:
+    return f"crewai:{workflow_key}:{agent_label}"
 
 
 def edge_identifier(row: dict[str, Any]) -> str:
     return stable_hash(
         {
             "epoch_id": EPOCH_ID,
+            "trace_id": row["trace_id"],
             "source_task": row["source_task"],
             "target_task": row["target_task"],
             "parent": row["caller"],
@@ -220,21 +266,25 @@ def edge_identifier(row: dict[str, Any]) -> str:
     )[:24]
 
 
-def build_crewai_workflow() -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
+def build_crewai_workflow(
+    workflow: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
     llm_calls: list[dict[str, Any]] = []
     task_callbacks: list[dict[str, Any]] = []
-    llm = DeterministicLLM(llm_calls)
+    llm = DeterministicLLM(llm_calls, workflow)
+    agent_deployers = workflow["agents"]
+    task_specs = workflow["tasks"]
 
     agents = {
         label: Agent(
-            role=label,
-            goal=f"Complete the {label} part of the procurement workflow.",
-            backstory=f"{label} is operated by {AGENT_DEPLOYERS[label]}.",
+            role=f"{workflow['key']}:{label}",
+            goal=f"Complete the {label} part of the {workflow['key']} workflow.",
+            backstory=f"{label} is operated by {agent_deployers[label]}.",
             llm=llm,
             verbose=False,
             allow_delegation=False,
         )
-        for label in AGENT_DEPLOYERS
+        for label in agent_deployers
     }
 
     tasks: dict[str, Task] = {}
@@ -246,19 +296,19 @@ def build_crewai_workflow() -> tuple[list[dict[str, Any]], list[dict[str, Any]],
                     "kind": "crewai_runtime_event",
                     "event_type": "task_callback",
                     "framework": f"crewai-{crewai.__version__}",
-                    "trace_id": TRACE_ID,
-                    "workflow": WORKFLOW,
-                    "input_cell": INPUT_CELL,
+                    "trace_id": workflow["trace_id"],
+                    "workflow": workflow["workflow"],
+                    "input_cell": workflow["input_cell"],
                     "task_name": task_name,
-                    "agent": agent_node(agent_label),
-                    "agent_deployer": AGENT_DEPLOYERS[agent_label],
+                    "agent": agent_node(workflow["key"], agent_label),
+                    "agent_deployer": agent_deployers[agent_label],
                     "output": getattr(output, "raw", str(output)),
                 }
             )
 
         return _callback
 
-    for spec in TASK_SPECS:
+    for spec in task_specs:
         contexts = [tasks[name] for name in spec["contexts"]]
         tasks[spec["name"]] = Task(
             name=spec["name"],
@@ -273,9 +323,9 @@ def build_crewai_workflow() -> tuple[list[dict[str, Any]], list[dict[str, Any]],
         )
 
     crew = Crew(
-        name="e19_crewai_procurement",
+        name=f"e19_crewai_{workflow['key']}",
         agents=list(agents.values()),
-        tasks=[tasks[spec["name"]] for spec in TASK_SPECS],
+        tasks=[tasks[spec["name"]] for spec in task_specs],
         process=Process.sequential,
         verbose=False,
         memory=False,
@@ -286,8 +336,8 @@ def build_crewai_workflow() -> tuple[list[dict[str, Any]], list[dict[str, Any]],
     handoffs: list[dict[str, Any]] = []
     executed_tasks = {row["task_name"] for row in task_callbacks}
     seq = 0
-    specs_by_name = {spec["name"]: spec for spec in TASK_SPECS}
-    for spec in TASK_SPECS:
+    specs_by_name = {spec["name"]: spec for spec in task_specs}
+    for spec in task_specs:
         if spec["name"] not in executed_tasks:
             continue
         for source_name in spec["contexts"]:
@@ -302,17 +352,17 @@ def build_crewai_workflow() -> tuple[list[dict[str, Any]], list[dict[str, Any]],
                     "kind": "crewai_runtime_event",
                     "event_type": "context_handoff",
                     "framework": f"crewai-{crewai.__version__}",
-                    "trace_id": TRACE_ID,
-                    "workflow": WORKFLOW,
-                    "input_cell": INPUT_CELL,
+                    "trace_id": workflow["trace_id"],
+                    "workflow": workflow["workflow"],
+                    "input_cell": workflow["input_cell"],
                     "repeat": 0,
                     "seq": seq,
                     "source_task": source_name,
                     "target_task": spec["name"],
-                    "caller": agent_node(caller_label),
-                    "callee": agent_node(callee_label),
-                    "caller_deployer": AGENT_DEPLOYERS[caller_label],
-                    "callee_deployer": AGENT_DEPLOYERS[callee_label],
+                    "caller": agent_node(workflow["key"], caller_label),
+                    "callee": agent_node(workflow["key"], callee_label),
+                    "caller_deployer": agent_deployers[caller_label],
+                    "callee_deployer": agent_deployers[callee_label],
                     "permission": spec["permission"],
                     "runtime_evidence": {
                         "crew_kickoff_completed": True,
@@ -471,10 +521,10 @@ def analyze_trace(events: list[dict[str, Any]]) -> dict[str, Any]:
         )
 
     return {
-        "trace_id": TRACE_ID,
+        "trace_id": events[0]["trace_id"],
         "framework": events[0]["framework"],
-        "workflow": WORKFLOW,
-        "input_cell": INPUT_CELL,
+        "workflow": events[0]["workflow"],
+        "input_cell": events[0]["input_cell"],
         "signed_delegation_events": len(events),
         "valid_signed_delegation_events": sum(signature_valid(event) for event in events),
         "nodes": len(dag.all_nodes()),
@@ -493,41 +543,55 @@ def analyze_trace(events: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def main() -> None:
-    raw, handoffs, crew_output = build_crewai_workflow()
+    raw: list[dict[str, Any]] = []
+    handoffs: list[dict[str, Any]] = []
+    crew_outputs: dict[str, str] = {}
+    for workflow in WORKFLOWS:
+        workflow_raw, workflow_handoffs, crew_output = build_crewai_workflow(workflow)
+        raw.extend(workflow_raw)
+        handoffs.extend(workflow_handoffs)
+        crew_outputs[workflow["key"]] = crew_output
     normalized = normalize(handoffs)
-    per_trace = analyze_trace(normalized)
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for event in normalized:
+        grouped.setdefault(event["trace_id"], []).append(event)
+    per_trace = [analyze_trace(grouped[trace_id]) for trace_id in sorted(grouped)]
     task_callbacks = [row for row in raw if row["event_type"] == "task_callback"]
     llm_calls = [row for row in raw if row["event_type"] == "llm_call"]
     results = {
-        "experiment": "E19 CrewAI tiny executable artifact",
+        "experiment": "E19 CrewAI executable adapter artifact",
         "purpose": (
-            "Run real CrewAI objects with a deterministic local BaseLLM, then "
+            "Run several real CrewAI workflows with a deterministic local BaseLLM, then "
             "normalize task-context handoffs into signed delegation decisions. "
             "This is portability evidence, not production prevalence evidence."
         ),
         "crewai_version": crewai.__version__,
         "raw_trace_path": "traces/crewai_runtime_raw.jsonl",
         "normalized_trace_path": "traces/normalized_events.jsonl",
-        "trace_units": 1,
+        "trace_units": len(per_trace),
         "crew_kickoff_completed": True,
-        "crew_output": crew_output,
-        "tasks_configured": len(TASK_SPECS),
+        "crew_outputs": crew_outputs,
+        "tasks_configured": sum(len(workflow["tasks"]) for workflow in WORKFLOWS),
         "task_callbacks_observed": len(task_callbacks),
         "llm_calls_observed": len(llm_calls),
         "signed_delegation_events": len(normalized),
-        "valid_signed_delegation_events": per_trace["valid_signed_delegation_events"],
-        "alternate_parent_cases": per_trace["alternate_parent_cases"],
-        "alternate_parent_preserved_by_edge_target": per_trace[
-            "alternate_parent_preserved_by_edge_target"
-        ],
-        "alternate_parent_wrongly_revoked_by_tree": per_trace[
-            "alternate_parent_wrongly_revoked_by_tree"
-        ],
-        "cross_domain_target_cases": per_trace["cross_domain_target_cases"],
-        "cross_domain_under_revoked_by_scoped": per_trace[
-            "cross_domain_under_revoked_by_scoped"
-        ],
-        "per_trace": [per_trace],
+        "valid_signed_delegation_events": sum(
+            row["valid_signed_delegation_events"] for row in per_trace
+        ),
+        "alternate_parent_cases": sum(row["alternate_parent_cases"] for row in per_trace),
+        "alternate_parent_preserved_by_edge_target": sum(
+            row["alternate_parent_preserved_by_edge_target"] for row in per_trace
+        ),
+        "alternate_parent_wrongly_revoked_by_tree": sum(
+            row["alternate_parent_wrongly_revoked_by_tree"] for row in per_trace
+        ),
+        "cross_domain_target_cases": sum(
+            row["cross_domain_target_cases"] for row in per_trace
+        ),
+        "cross_domain_under_revoked_by_scoped": sum(
+            row["cross_domain_under_revoked_by_scoped"] for row in per_trace
+        ),
+        "per_trace": per_trace,
     }
     write_jsonl(RAW_PATH, raw)
     write_jsonl(NORMALIZED_PATH, normalized)
@@ -535,6 +599,7 @@ def main() -> None:
     print(
         "E19 CrewAI executable demo: "
         f"crewai={results['crewai_version']} "
+        f"traces={results['trace_units']} "
         f"tasks={results['task_callbacks_observed']}/"
         f"{results['tasks_configured']} "
         f"llm_calls={results['llm_calls_observed']} "

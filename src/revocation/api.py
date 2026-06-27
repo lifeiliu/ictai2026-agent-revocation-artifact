@@ -9,7 +9,7 @@ proof bundle, and verify that bundle without the original graph.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -401,3 +401,112 @@ class RevocationContract:
         revoked_at: float | None = None,
     ) -> RevocationBundle:
         return self.prove(self.issue_revocation(edge_id, revoked_at=revoked_at))
+
+
+@dataclass
+class FrameworkRevocationAdapter:
+    """Drop-in facade for agent runtime middleware or callback integrations.
+
+    Existing frameworks do not need to fork their orchestrator.  A wrapper can
+    record caller-to-callee handoffs, mark accepted edges, issue revocations, and
+    verify returned bundles through this small API surface.
+    """
+
+    framework: str
+    workflow: str
+    epoch_id: str = "epoch-0"
+    federation_key: KeyPair | None = None
+    _events: list[EventDict] = field(default_factory=list)
+    _accepted_edges: set[str] = field(default_factory=set)
+    _seq: int = 0
+
+    def record_handoff(
+        self,
+        *,
+        caller: str,
+        callee: str,
+        parent_domain: str,
+        child_domain: str,
+        permission: dict[str, Any] | None = None,
+        scope: str = "agent-handoff",
+        trace_id: str | None = None,
+        source_task: str | None = None,
+        target_task: str | None = None,
+        edge_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> EventDict:
+        """Record a runtime caller-to-callee handoff as a candidate edge."""
+        self._seq += 1
+        event: EventDict = {
+            "epoch_id": self.epoch_id,
+            "framework": self.framework,
+            "workflow": self.workflow,
+            "trace_id": trace_id or f"{self.workflow}-trace",
+            "seq": self._seq,
+            "caller": caller,
+            "callee": callee,
+            "parent_domain": parent_domain,
+            "child_domain": child_domain,
+            "scope": scope,
+            "permission": permission
+            or {"tenant": "*", "resource": "*", "action": "*", "constraints": []},
+        }
+        if source_task is not None:
+            event["source_task"] = source_task
+        if target_task is not None:
+            event["target_task"] = target_task
+        if metadata:
+            event["metadata"] = dict(metadata)
+        event["edge_id"] = edge_id or _edge_id(event, self._seq)
+        event["accepted"] = False
+        self._events.append(event)
+        return dict(event)
+
+    def accept_edge(self, edge_id: str) -> EventDict:
+        """Mark a handoff as accepted by the callee-side adapter."""
+        for event in self._events:
+            if event["edge_id"] == edge_id:
+                event["accepted"] = True
+                self._accepted_edges.add(edge_id)
+                return dict(event)
+        raise ValueError(f"unknown edge_id {edge_id!r}")
+
+    @property
+    def events(self) -> list[EventDict]:
+        """All recorded handoffs, including unaccepted candidates."""
+        return [dict(event) for event in self._events]
+
+    @property
+    def accepted_events(self) -> list[EventDict]:
+        """Accepted handoffs that form the signed delegation graph."""
+        return [
+            dict(event)
+            for event in self._events
+            if event["edge_id"] in self._accepted_edges
+        ]
+
+    def contract(self) -> RevocationContract:
+        """Build a verifier contract from accepted runtime handoffs."""
+        return RevocationContract.from_events(
+            self.accepted_events,
+            epoch_id=self.epoch_id,
+            federation_key=self.federation_key,
+        )
+
+    def revoke_edge(
+        self,
+        edge_id: str,
+        *,
+        revoked_at: float | None = None,
+    ) -> RevocationBundle:
+        """Issue and prove an edge revocation for accepted runtime handoffs."""
+        if edge_id not in self._accepted_edges:
+            raise ValueError(f"edge_id {edge_id!r} has not been accepted")
+        return self.contract().revoke_and_prove(edge_id, revoked_at=revoked_at)
+
+    @staticmethod
+    def verify_revocation_bundle(bundle: RevocationBundle | BundleDict) -> bool:
+        """Verify a portable revocation bundle without access to the graph."""
+        if isinstance(bundle, dict):
+            bundle = RevocationBundle.from_dict(bundle)
+        return bundle.verify()

@@ -16,7 +16,7 @@
   agent events, issuing edge revocations, exporting proof bundles, and verifying
   them without the original graph.
 - `src/revocation/cli.py`: command-line wrapper around the API.
-- `examples/agent_runtime_adapter.py`: tiny E19 adapter example that turns
+- `examples/agent_runtime_adapter.py`: E19 adapter example that turns
   normalized CrewAI handoff events into a verified revocation proof.
 - `tests/unit/`: unit tests for graph, granularity, revocation, and prototype
   behavior, including the API/CLI smoke tests.
@@ -35,7 +35,8 @@
 - `experiments/e17_a2a_protocol_demo/`: A2A-shaped portability artifact.
 - `experiments/e18_cross_framework_agent_demo/`: AutoGen/CrewAI-shaped
   portability artifact.
-- `experiments/e19_crewai_executable_demo/`: pinned CrewAI executable artifact.
+- `experiments/e19_crewai_executable_demo/`: pinned five-workflow CrewAI
+  executable artifact.
 
 ## Results
 

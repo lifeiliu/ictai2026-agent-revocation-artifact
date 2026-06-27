@@ -6,7 +6,6 @@
 - `MANIFEST.md`: this file.
 - `requirements-core.txt`: core runtime dependencies.
 - `requirements-dev.txt`: core dependencies plus `pytest`.
-- `paper/main_ictai.pdf`: compiled anonymous paper snapshot for convenience.
 - `scripts/check_artifact.py`: dependency-free result consistency check.
 
 ## Source

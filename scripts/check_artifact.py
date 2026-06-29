@@ -23,7 +23,20 @@ def expect_close(name: str, actual: float, expected: float, tol: float = 0.01) -
         raise AssertionError(f"{name}: expected {expected}, got {actual}")
 
 
+def expect_file(path: str) -> None:
+    if not (ROOT / path).exists():
+        raise AssertionError(f"missing required artifact file: {path}")
+
+
 def main() -> None:
+    expect_file("requirements-framework.txt")
+    expect_file("experiments/e19_crewai_executable_demo/requirements.txt")
+
+    e4 = load("experiments/e4_ba_scale/e4_results.json")
+    expect_close("E4 BA min mean collateral", e4["headline"]["tree_overrev_mean_min_nodes"], 5.87)
+    expect_close("E4 BA max mean collateral", e4["headline"]["tree_overrev_mean_max_nodes"], 79.67)
+    expect_close("E4 tree failure minimum", e4["headline"]["tree_prev_pct_min"], 100.0)
+
     e16 = load("experiments/e16_framework_trace_replay/e16_results.json")
     expect("E16 traces", e16["collection"]["trace_units"], 500)
     expect("E16 raw events", e16["collection"]["raw_events"], 10500)
@@ -90,11 +103,20 @@ def main() -> None:
     expect_close("E8 2000-node wire ratio", 100 * scaling[2000]["wire_ratio"]["median"], 69.0, tol=0.05)
 
     e11 = load("experiments/e11_oss_corpus/e11_results.json")
-    expect("E11 graphs", e11["graphs"], 47)
-    expect("E11 nodes", e11["nodes"], 382)
-    expect("E11 edges", e11["edges"], 384)
-    expect("E11 graphs with multi-parent", e11["graphs_with_mp"], 31)
-    expect_close("E11 tree deviation", e11["tree_over_fail_pct"], 70.1, tol=0.05)
+    e11_all = e11["all_extracted"]
+    e11_acyclic = e11["acyclic_analysis"]
+    expect("E11 extracted graphs", e11_all["graphs"], 47)
+    expect("E11 extracted nodes", e11_all["nodes"], 382)
+    expect("E11 extracted edges", e11_all["edges"], 384)
+    expect("E11 extracted graphs with multi-parent", e11_all["graphs_with_mp"], 31)
+    expect("E11 excluded cyclic graphs", e11["excluded_cyclic_graphs"], 29)
+    expect("E11 acyclic graphs", e11_acyclic["graphs"], 18)
+    expect("E11 acyclic nodes", e11_acyclic["nodes"], 123)
+    expect("E11 acyclic edges", e11_acyclic["edges"], 102)
+    expect("E11 acyclic graphs with multi-parent", e11_acyclic["graphs_with_mp"], 8)
+    expect_close("E11 acyclic tree deviation", e11_acyclic["tree_over_fail_pct"], 54.9, tol=0.05)
+    expect("E11 acyclic batch gaps", e11_acyclic["batch_fail_count"], 8)
+    expect("E11 acyclic batch pairs", e11_acyclic["batch_pairs"], 33)
 
     print("artifact checks passed")
 

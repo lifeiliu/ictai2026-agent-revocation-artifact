@@ -21,6 +21,7 @@ Design: n ∈ {100, 500, 2000}, m ∈ {2, 4},
 
 import sys
 import time
+import json
 from pathlib import Path
 
 import networkx as nx
@@ -218,6 +219,39 @@ def main():
               f"tree-cascade fails {s['tree_prev_pct']:.1f}% of revocations "
               f"(mean OverRev={s['tree_overrev_mean']:.1f} nodes, "
               f"{s['tree_overrev_pct']:.2f}% of graph)")
+
+    def json_ready(value):
+        if isinstance(value, np.generic):
+            return value.item()
+        if isinstance(value, dict):
+            return {k: json_ready(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [json_ready(v) for v in value]
+        return value
+
+    tree_means = [s["tree_overrev_mean"] for s in all_summaries]
+    out = {
+        "experiment": "E4 Barabasi-Albert scale stress test",
+        "design": {
+            "configs": [
+                {"n": n, "m": m, "graphs": n_graphs, "edges_per_graph": n_edges}
+                for n, m, n_graphs, n_edges in configs
+            ],
+            "graph_model": "directed acyclic Barabasi-Albert preferential attachment",
+            "edge_sampling": "sample non-root-parent edges when available",
+            "deterministic_seeds": True,
+        },
+        "summaries": json_ready(all_summaries),
+        "headline": {
+            "tree_overrev_mean_min_nodes": float(min(tree_means)),
+            "tree_overrev_mean_max_nodes": float(max(tree_means)),
+            "tree_prev_pct_min": float(min(s["tree_prev_pct"] for s in all_summaries)),
+            "tree_prev_pct_max": float(max(s["tree_prev_pct"] for s in all_summaries)),
+        },
+    }
+    out_path = Path(__file__).with_name("e4_results.json")
+    out_path.write_text(json.dumps(out, indent=2, sort_keys=True) + "\n")
+    print(f"\n[OK] E4 complete; wrote {out_path}")
 
     return all_summaries
 

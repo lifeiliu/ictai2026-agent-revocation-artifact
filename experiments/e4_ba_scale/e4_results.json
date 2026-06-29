@@ -1,0 +1,150 @@
+{
+  "design": {
+    "configs": [
+      {
+        "edges_per_graph": 50,
+        "graphs": 50,
+        "m": 2,
+        "n": 100
+      },
+      {
+        "edges_per_graph": 50,
+        "graphs": 50,
+        "m": 4,
+        "n": 100
+      },
+      {
+        "edges_per_graph": 50,
+        "graphs": 50,
+        "m": 2,
+        "n": 500
+      },
+      {
+        "edges_per_graph": 50,
+        "graphs": 50,
+        "m": 4,
+        "n": 500
+      },
+      {
+        "edges_per_graph": 30,
+        "graphs": 30,
+        "m": 2,
+        "n": 2000
+      },
+      {
+        "edges_per_graph": 30,
+        "graphs": 30,
+        "m": 4,
+        "n": 2000
+      }
+    ],
+    "deterministic_seeds": true,
+    "edge_sampling": "sample non-root-parent edges when available",
+    "graph_model": "directed acyclic Barabasi-Albert preferential attachment"
+  },
+  "experiment": "E4 Barabasi-Albert scale stress test",
+  "headline": {
+    "tree_overrev_mean_max_nodes": 79.67444444444445,
+    "tree_overrev_mean_min_nodes": 5.8732,
+    "tree_prev_pct_max": 100.0,
+    "tree_prev_pct_min": 100.0
+  },
+  "summaries": [
+    {
+      "l0_overrev_mean": 97.0348,
+      "l0_overrev_pct": 97.03479999999999,
+      "l0_prev_pct": 100.0,
+      "m": 2,
+      "mp_rate_pct": 97.97979797979798,
+      "n": 100,
+      "scope_prev_pct": 0.0,
+      "scope_underrev_mean": 0.0,
+      "scope_underrev_pct": 0.0,
+      "t2_mean": 0.0,
+      "t2_mean_pct": 0.0,
+      "tree_overrev_mean": 5.8732,
+      "tree_overrev_pct": 5.8732,
+      "tree_prev_pct": 100.0
+    },
+    {
+      "l0_overrev_mean": 98.4528,
+      "l0_overrev_pct": 98.45279999999998,
+      "l0_prev_pct": 100.0,
+      "m": 4,
+      "mp_rate_pct": 95.95959595959594,
+      "n": 100,
+      "scope_prev_pct": 0.0,
+      "scope_underrev_mean": 0.0,
+      "scope_underrev_pct": 0.0,
+      "t2_mean": 0.0,
+      "t2_mean_pct": 0.0,
+      "tree_overrev_mean": 14.4912,
+      "tree_overrev_pct": 14.4912,
+      "tree_prev_pct": 100.0
+    },
+    {
+      "l0_overrev_mean": 494.5484,
+      "l0_overrev_pct": 98.90968000000001,
+      "l0_prev_pct": 100.0,
+      "m": 2,
+      "mp_rate_pct": 99.59919839679357,
+      "n": 500,
+      "scope_prev_pct": 0.0,
+      "scope_underrev_mean": 0.0,
+      "scope_underrev_pct": 0.0,
+      "t2_mean": 0.0,
+      "t2_mean_pct": 0.0,
+      "tree_overrev_mean": 11.7108,
+      "tree_overrev_pct": 2.3421600000000002,
+      "tree_prev_pct": 100.0
+    },
+    {
+      "l0_overrev_mean": 498.6928,
+      "l0_overrev_pct": 99.73855999999999,
+      "l0_prev_pct": 100.0,
+      "m": 4,
+      "mp_rate_pct": 99.19839679358716,
+      "n": 500,
+      "scope_prev_pct": 0.0,
+      "scope_underrev_mean": 0.0,
+      "scope_underrev_pct": 0.0,
+      "t2_mean": 0.0,
+      "t2_mean_pct": 0.0,
+      "tree_overrev_mean": 39.5008,
+      "tree_overrev_pct": 7.90016,
+      "tree_prev_pct": 100.0
+    },
+    {
+      "l0_overrev_mean": 1982.7055555555555,
+      "l0_overrev_pct": 99.13527777777779,
+      "l0_prev_pct": 100.0,
+      "m": 2,
+      "mp_rate_pct": 99.89994997498749,
+      "n": 2000,
+      "scope_prev_pct": 0.0,
+      "scope_underrev_mean": 0.0,
+      "scope_underrev_pct": 0.0,
+      "t2_mean": 0.0,
+      "t2_mean_pct": 0.0,
+      "tree_overrev_mean": 17.33,
+      "tree_overrev_pct": 0.8664999999999999,
+      "tree_prev_pct": 100.0
+    },
+    {
+      "l0_overrev_mean": 1997.96,
+      "l0_overrev_pct": 99.898,
+      "l0_prev_pct": 100.0,
+      "m": 4,
+      "mp_rate_pct": 99.79989994997499,
+      "n": 2000,
+      "scope_prev_pct": 0.0,
+      "scope_underrev_mean": 0.0,
+      "scope_underrev_pct": 0.0,
+      "t2_mean": 0.0,
+      "t2_mean_pct": 0.0,
+      "tree_overrev_mean": 79.67444444444445,
+      "tree_overrev_pct": 3.983722222222222,
+      "tree_prev_pct": 100.0
+    }
+  ]
+}

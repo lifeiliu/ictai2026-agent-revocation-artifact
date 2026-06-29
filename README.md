@@ -8,8 +8,11 @@ identity or local machine paths.
 The artifact is intentionally scoped to the experiments used by the paper:
 
 - E6: batch non-compositionality and event-selection sensitivity.
+- E4: generated Barabasi--Albert DAG stress test backing the scale-graph
+  collateral range.
 - E8: signed revocation prototype, proof verification, and mutation rejection.
-- E11: static LangGraph corpus summary used as lower-bound topology evidence.
+- E11: static LangGraph corpus summary, with DAG-semantics metrics reported on
+  the acyclic extracted subset.
 - E16: executed LangGraph trace replay and baseline expressiveness.
 - E17/E18: A2A-, AutoGen-, and CrewAI-shaped portability artifacts.
 - E19: five executable CrewAI workflows with a deterministic local LLM.
@@ -39,6 +42,14 @@ python3 -m venv .venv
 PYTHONPATH=src .venv/bin/python -m pytest tests
 ```
 
+`requirements-core.txt` is intentionally limited to dependency-light checks and
+does not install framework packages. For full framework reruns, including E16
+collection and E19, install:
+
+```bash
+.venv/bin/python -m pip install -r requirements-framework.txt
+```
+
 ## Reproducing Selected Experiments
 
 The result files used by the paper are already included. To rerun selected
@@ -47,6 +58,8 @@ lightweight experiments:
 ```bash
 PYTHONPATH=src .venv/bin/python experiments/e17_a2a_protocol_demo/run.py
 PYTHONPATH=src .venv/bin/python experiments/e18_cross_framework_agent_demo/run.py
+PYTHONPATH=src .venv/bin/python experiments/e4_ba_scale/run.py
+PYTHONPATH=src .venv/bin/python experiments/e11_oss_corpus/run.py
 ```
 
 E19 uses CrewAI and has its own pinned dependency file:
@@ -61,7 +74,7 @@ PYTHONPATH=../../src .venv/bin/python run.py
 
 E16 includes the recorded raw and normalized LangGraph traces used in the paper.
 The full rerun requires installing LangGraph in addition to the core
-dependencies, but the included `e16_results.json`,
+dependencies (`requirements-framework.txt`), but the included `e16_results.json`,
 `e16_baseline_expressiveness.json`, and trace files are sufficient to audit the
 reported table values.
 
@@ -96,13 +109,18 @@ require the original graph.
 
 - E16: 500 traces, 10,500 raw runtime events, 2,000 valid signed delegation
   decisions, 320 alternate-parent cases, 760/760 replay-level attacks rejected.
-- E17--E19: 9 portability traces, 53/53 valid signed delegation events, 8/8
-  alternate-parent cases preserved by the edge target, and 19/19 cross-domain
-  target cases missed by deployer-scoped cascade.
+- E17--E19: 9 portability traces, 53/53 schema/signature-valid signed
+  delegation events, 8/8 alternate-parent cases preserved by the edge target,
+  and 19/19 cross-domain target cases missed by deployer-scoped cascade.
+- E4: BA scale stress test result file with mean tree-cascade collateral from
+  5.87 to 79.67 nodes across the reported cells.
 - E6: 39,991 sampled batch revocation sets, 21.25% mean per-graph
   non-compositionality failure, mean missed nodes 0.24, max missed nodes 5.
 - E8: target computation 0.17--2.15 ms up to 2,000 nodes, proof/full wire ratio
   64.7--69.0%, and 1,100/1,100 malformed cases rejected.
+- E11: 47 static extracted LangGraph graphs (382 nodes, 384 edges), with
+  DAG-semantics replay restricted to 18 acyclic graphs; tree cascade deviates on
+  54.9% of edges in that acyclic subset.
 
 ## Files
 

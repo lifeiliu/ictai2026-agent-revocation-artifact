@@ -6,6 +6,8 @@
 - `MANIFEST.md`: this file.
 - `requirements-core.txt`: core runtime dependencies.
 - `requirements-dev.txt`: core dependencies plus `pytest`.
+- `requirements-framework.txt`: optional framework dependencies for full E16/E19
+  reruns (`langgraph` and pinned CrewAI through the E19 requirements file).
 - `scripts/check_artifact.py`: dependency-free result consistency check.
 
 ## Source

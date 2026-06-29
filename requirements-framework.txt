@@ -1,0 +1,3 @@
+-r requirements-dev.txt
+langgraph==1.2.6
+-r experiments/e19_crewai_executable_demo/requirements.txt
